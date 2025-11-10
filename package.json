@@ -1,0 +1,42 @@
+{
+    "name": "blocklucky",
+    "version": "1.0.0",
+    "description": "BlockLucky - Loterie décentralisée sur Ethereum",
+    "main": "index.js",
+    "scripts": {
+        "test": "hardhat test",
+        "compile": "hardhat compile",
+        "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+        "interact": "hardhat run scripts/interact.js --network localhost",
+        "status": "hardhat run scripts/status.js --network localhost",
+        "node": "hardhat node",
+        "clean": "hardhat clean",
+        "coverage": "hardhat coverage"
+    },
+    "keywords": [
+        "blockchain",
+        "ethereum",
+        "lottery",
+        "smart-contract",
+        "hardhat"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.0.0",
+        "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "@nomicfoundation/hardhat-verify": "^2.0.0",
+        "@typechain/ethers-v6": "^0.5.0",
+        "@typechain/hardhat": "^9.0.0",
+        "@types/chai": "^4.3.0",
+        "@types/mocha": "^10.0.0",
+        "chai": "^4.3.10",
+        "ethers": "^6.4.0",
+        "hardhat": "^2.19.0",
+        "hardhat-gas-reporter": "^1.0.8",
+        "solidity-coverage": "^0.8.0",
+        "typechain": "^8.3.0"
+    }
+}
