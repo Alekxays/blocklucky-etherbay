@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import contractABI from './contractABI.json'
 
-const CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+const CONTRACT_ADDRESS = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E"
 
 function App() {
     const [account, setAccount] = useState(null)
@@ -21,6 +21,8 @@ function App() {
     const [isActive, setIsActive] = useState(false)
     const [timeRemaining, setTimeRemaining] = useState(0)
     const [canDraw, setCanDraw] = useState(false)
+    const [owner, setOwner] = useState(null)
+    const [isOwner, setIsOwner] = useState(false)
 
     // Joueurs et historique
     const [players, setPlayers] = useState([])
@@ -29,6 +31,7 @@ function App() {
 
     // Formulaire
     const [ticketAmount, setTicketAmount] = useState(1)
+    const [externalSeed, setExternalSeed] = useState('')
 
     useEffect(() => {
         checkWallet()
@@ -177,7 +180,8 @@ function App() {
                 active,
                 time,
                 draw,
-                playersList
+                playersList,
+                contractOwner
             ] = await Promise.all([
                 contract.ticketPrice(),
                 contract.getPlayersCount(),
@@ -187,7 +191,8 @@ function App() {
                 contract.isActive(),
                 contract.getTimeRemaining(),
                 contract.canDrawWinner(),
-                contract.getPlayers()
+                contract.getPlayers(),
+                contract.owner()
             ])
 
             setTicketPrice(ethers.formatEther(price))
@@ -198,6 +203,12 @@ function App() {
             setIsActive(active)
             setTimeRemaining(Number(time))
             setCanDraw(draw)
+            setOwner(contractOwner)
+
+            // Vérifier si l'utilisateur connecté est le owner
+            if (account) {
+                setIsOwner(account.toLowerCase() === contractOwner.toLowerCase())
+            }
 
             // Traiter la liste des joueurs
             const playerMap = {}
@@ -264,6 +275,51 @@ function App() {
         }
     }
 
+    async function drawWinner() {
+        if (!contract || !isOwner) return
+
+        try {
+            setLoading(true)
+            setError(null)
+
+            // Tirage sans seed (passe 0)
+            const tx = await contract.drawWinner(0)
+            await tx.wait()
+
+            await loadLotteryData()
+            setLoading(false)
+            alert('🎉 Gagnant tiré au sort ! Vérifiez l\'historique.')
+        } catch (err) {
+            console.error('Erreur tirage:', err)
+            setError('Erreur lors du tirage: ' + (err.reason || err.message))
+            setLoading(false)
+        }
+    }
+
+    async function drawWinnerWithSeed() {
+        if (!contract || !isOwner) return
+
+        try {
+            setLoading(true)
+            setError(null)
+
+            const seed = externalSeed ? parseInt(externalSeed) : Math.floor(Math.random() * 1000000000)
+            console.log('🎲 Seed utilisé:', seed)
+
+            const tx = await contract.drawWinner(seed)
+            await tx.wait()
+
+            await loadLotteryData()
+            setExternalSeed('')
+            setLoading(false)
+            alert(`🎉 Gagnant tiré avec le seed ${seed} ! Vérifiez l'historique.`)
+        } catch (err) {
+            console.error('Erreur tirage avec seed:', err)
+            setError('Erreur lors du tirage: ' + (err.reason || err.message))
+            setLoading(false)
+        }
+    }
+
     function formatTime(seconds) {
         const h = Math.floor(seconds / 3600)
         const m = Math.floor((seconds % 3600) / 60)
@@ -292,10 +348,17 @@ function App() {
                 ) : (
                     <div className="wallet-info">
                         <span>✅ {formatAddress(account)}</span>
+                        {isOwner && <span className="badge badge-owner">👑 Propriétaire</span>}
                         {myTickets > 0 && <span className="badge">🎫 {myTickets} ticket(s)</span>}
                     </div>
                 )}
             </header>
+
+            {owner && (
+                <div className="owner-info">
+                    <span>👑 Propriétaire du contrat: {formatAddress(owner)}</span>
+                </div>
+            )}
 
             {error && (
                 <div className="error-banner">
@@ -420,6 +483,49 @@ function App() {
                             <p className="buy-info">
                                 Total: {(parseFloat(ticketPrice) * ticketAmount).toFixed(4)} ETH
                             </p>
+                        </div>
+                    )}
+
+                    {isOwner && canDraw && (
+                        <div className="owner-section">
+                            <h2>🎲 Panel Propriétaire</h2>
+                            <p>Vous êtes le propriétaire. Vous pouvez lancer le tirage au sort !</p>
+
+                            <div className="draw-options">
+                                <div className="draw-option">
+                                    <h3>Tirage standard</h3>
+                                    <p>Utilise uniquement le seed interne (évolue avec chaque achat)</p>
+                                    <button
+                                        className="btn btn-warning"
+                                        onClick={drawWinner}
+                                        disabled={loading}
+                                    >
+                                        {loading ? '⏳ Tirage...' : '🎯 Lancer le tirage'}
+                                    </button>
+                                </div>
+
+                                <div className="draw-option highlight">
+                                    <h3>Tirage avec seed externe</h3>
+                                    <p>Recommandé : Ajoute un nombre aléatoire pour plus de sécurité</p>
+                                    <div className="seed-input-group">
+                                        <input
+                                            type="number"
+                                            placeholder="Seed (laisse vide pour auto)"
+                                            value={externalSeed}
+                                            onChange={(e) => setExternalSeed(e.target.value)}
+                                            disabled={loading}
+                                        />
+                                        <button
+                                            className="btn btn-success"
+                                            onClick={drawWinnerWithSeed}
+                                            disabled={loading}
+                                        >
+                                            {loading ? '⏳ Tirage...' : '🎲 Lancer avec seed'}
+                                        </button>
+                                    </div>
+                                    <small>💡 Si vide, un seed aléatoire sera généré automatiquement</small>
+                                </div>
+                            </div>
                         </div>
                     )}
 
