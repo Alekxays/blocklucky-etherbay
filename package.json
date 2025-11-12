@@ -11,7 +11,8 @@
         "status": "hardhat run scripts/status.js --network localhost",
         "node": "hardhat node",
         "clean": "hardhat clean",
-        "coverage": "hardhat coverage"
+        "coverage": "hardhat coverage",
+        "start:frontend": "./start-frontend.sh"
     },
     "keywords": [
         "blockchain",

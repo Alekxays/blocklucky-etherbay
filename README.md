@@ -117,6 +117,22 @@ await lottery.connect(player).buyTicket(1, { value: price });
 console.log("Joueurs:", (await lottery.getPlayersCount()).toString());
 ```
 
+### 4. Lancer le Frontend (optionnel)
+
+```bash
+cd frontend
+npm install
+npm run setup  # Configure l'adresse du contrat automatiquement
+npm run dev    # Ouvre http://localhost:3000
+```
+
+Interface React avec :
+- Connexion MetaMask
+- Stats en temps réel
+- Achat de tickets
+- Liste des participants
+- Historique
+
 ---
 
 ## 🧪 Tests
