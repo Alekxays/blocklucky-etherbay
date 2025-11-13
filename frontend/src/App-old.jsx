@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import contractABI from './contractABI.json'
+import './index.css'
 
-const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+const CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 
 function App() {
     const [account, setAccount] = useState(null)
@@ -44,51 +45,41 @@ function App() {
 
     async function checkWallet() {
         if (typeof window.ethereum !== 'undefined') {
-            const accounts = await window.ethereum.request({ method: 'eth_accounts' })
-            if (accounts.length > 0) {
-                connectWallet()
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+                if (accounts.length > 0) {
+                    connectWallet('injected')
+                }
+            } catch (err) {
+                console.error('Erreur check wallet:', err)
             }
         }
     }
 
-    async function connectWallet(walletType = 'metamask') {
+    async function connectWallet(walletType = 'injected') {
         try {
             setLoading(true)
             setError(null)
             setShowWalletModal(false)
 
-            let ethereum = null
+            if (typeof window.ethereum === 'undefined') {
+                setError('Aucun wallet crypto détecté. Installez MetaMask, Coinbase Wallet, ou un autre wallet compatible.')
+                setLoading(false)
+                return
+            }
 
-            // Détection du wallet
-            if (walletType === 'metamask') {
-                if (typeof window.ethereum !== 'undefined') {
-                    // Si plusieurs wallets, chercher MetaMask spécifiquement
-                    if (window.ethereum.providers) {
-                        ethereum = window.ethereum.providers.find(p => p.isMetaMask)
-                    } else if (window.ethereum.isMetaMask) {
-                        ethereum = window.ethereum
-                    }
+            let ethereum = window.ethereum
+
+            // Si plusieurs wallets sont installés
+            if (window.ethereum.providers && walletType !== 'injected') {
+                if (walletType === 'metamask') {
+                    ethereum = window.ethereum.providers.find(p => p.isMetaMask)
+                } else if (walletType === 'coinbase') {
+                    ethereum = window.ethereum.providers.find(p => p.isCoinbaseWallet)
                 }
-                
+
                 if (!ethereum) {
-                    setError('MetaMask non détecté. Installez MetaMask ou essayez un autre wallet.')
-                    setLoading(false)
-                    return
-                }
-            } else if (walletType === 'coinbase') {
-                if (window.ethereum?.isCoinbaseWallet) {
-                    ethereum = window.ethereum
-                } else {
-                    setError('Coinbase Wallet non détecté. Installez Coinbase Wallet.')
-                    setLoading(false)
-                    return
-                }
-            } else if (walletType === 'injected') {
-                // N'importe quel wallet injecté
-                if (typeof window.ethereum !== 'undefined') {
-                    ethereum = window.ethereum
-                } else {
-                    setError('Aucun wallet détecté. Installez MetaMask ou un autre wallet.')
+                    setError(`${walletType === 'metamask' ? 'MetaMask' : 'Coinbase Wallet'} non trouvé. Essayez "Autre Wallet".`)
                     setLoading(false)
                     return
                 }
@@ -99,7 +90,7 @@ function App() {
                 method: 'eth_requestAccounts'
             })
 
-            // Vérifier le réseau
+            // Vérifier/changer le réseau
             const chainId = await ethereum.request({ method: 'eth_chainId' })
             if (chainId !== '0x7a69') { // 31337 en hexa
                 try {
@@ -108,8 +99,8 @@ function App() {
                         params: [{ chainId: '0x7a69' }],
                     })
                 } catch (switchError) {
-                    // Si le réseau n'existe pas, le créer
                     if (switchError.code === 4902) {
+                        // Le réseau n'existe pas, le créer
                         try {
                             await ethereum.request({
                                 method: 'wallet_addEthereumChain',
@@ -125,12 +116,12 @@ function App() {
                                 }],
                             })
                         } catch (addError) {
-                            setError('Erreur lors de l\'ajout du réseau Hardhat')
+                            setError('Impossible d\'ajouter le réseau Hardhat Local')
                             setLoading(false)
                             return
                         }
                     } else {
-                        setError('Veuillez passer au réseau Hardhat Local (Chain ID: 31337)')
+                        setError('Veuillez passer au réseau "Hardhat Local" (Chain ID: 31337) dans votre wallet')
                         setLoading(false)
                         return
                     }
@@ -148,11 +139,11 @@ function App() {
             // Écouter les changements
             ethereum.on('accountsChanged', (accounts) => {
                 if (accounts.length > 0) {
-                    setAccount(accounts[0])
-                    window.location.reload() // Recharger pour réinitialiser l'état
+                    window.location.reload()
                 } else {
                     setAccount(null)
                     setContract(null)
+                    setProvider(null)
                 }
             })
 
@@ -162,26 +153,21 @@ function App() {
 
             setLoading(false)
         } catch (err) {
-            console.error(err)
+            console.error('Erreur connexion:', err)
             if (err.code === 4001) {
-                setError('Connexion refusée par l\'utilisateur')
+                setError('Connexion refusée')
+            } else if (err.code === -32002) {
+                setError('Une demande de connexion est déjà en attente. Vérifiez votre wallet.')
             } else {
-                setError('Erreur de connexion au wallet: ' + err.message)
+                setError(`Erreur: ${err.message}`)
             }
-            setLoading(false)
-        }
-    }
-            })
-
-            setLoading(false)
-        } catch (err) {
-            console.error(err)
-            setError('Erreur de connexion au wallet')
             setLoading(false)
         }
     }
 
     async function loadLotteryData() {
+        if (!contract) return
+
         try {
             const [
                 price,
@@ -245,10 +231,11 @@ function App() {
                     })
                 }
             }
-            setHistory(historyData.reverse())
+            setHistory(historyData)
 
         } catch (err) {
             console.error('Erreur chargement données:', err)
+            setError('Impossible de charger les données du contrat. Vérifiez votre connexion.')
         }
     }
 
@@ -259,172 +246,216 @@ function App() {
             setLoading(true)
             setError(null)
 
-            const price = await contract.ticketPrice()
-            const totalCost = price * BigInt(ticketAmount)
-
-            const tx = await contract.buyTicket(ticketAmount, {
-                value: totalCost
-            })
+            const value = ethers.parseEther((parseFloat(ticketPrice) * ticketAmount).toString())
+            const tx = await contract.buyTicket(ticketAmount, { value })
 
             await tx.wait()
+
             await loadLotteryData()
             setTicketAmount(1)
             setLoading(false)
         } catch (err) {
-            console.error(err)
-            setError(err.reason || 'Erreur lors de l\'achat')
+            console.error('Erreur achat:', err)
+            if (err.code === 'ACTION_REJECTED') {
+                setError('Transaction annulée')
+            } else {
+                setError('Erreur lors de l\'achat: ' + (err.reason || err.message))
+            }
             setLoading(false)
         }
     }
 
-    function formatAddress(address) {
-        return `${address.slice(0, 6)}...${address.slice(-4)}`
-    }
-
     function formatTime(seconds) {
-        if (seconds === 0) return 'Pas de limite'
         const h = Math.floor(seconds / 3600)
         const m = Math.floor((seconds % 3600) / 60)
         const s = seconds % 60
         return `${h}h ${m}m ${s}s`
     }
 
-    if (!account) {
-        return (
-            <div className="app">
-                <div className="header">
-                    <h1>🎰 BlockLucky</h1>
-                    <p>Loterie décentralisée sur Ethereum</p>
-                </div>
-                <div className="wallet-section">
-                    <button
-                        className="btn btn-primary"
-                        onClick={connectWallet}
-                        disabled={loading}
-                    >
-                        {loading ? 'Connexion...' : 'Connecter MetaMask'}
-                    </button>
-                    {error && <div className="error-message">{error}</div>}
-                </div>
-            </div>
-        )
+    function formatAddress(addr) {
+        return `${addr.slice(0, 6)}...${addr.slice(-4)}`
     }
 
     return (
         <div className="app">
-            <div className="header">
+            <header className="header">
                 <h1>🎰 BlockLucky</h1>
                 <p>Loterie décentralisée sur Ethereum</p>
-                <div className="wallet-address">
-                    {formatAddress(account)}
-                </div>
-            </div>
 
-            {error && <div className="error-message">{error}</div>}
-
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <h3>Round Actuel</h3>
-                    <div className="value">#{roundNumber}</div>
-                </div>
-                <div className="stat-card">
-                    <h3>Prix du Ticket</h3>
-                    <div className="value">{ticketPrice} ETH</div>
-                </div>
-                <div className="stat-card">
-                    <h3>Participants</h3>
-                    <div className="value">{playersCount} / {minPlayers}</div>
-                </div>
-                <div className="stat-card">
-                    <h3>Cagnotte</h3>
-                    <div className="value">{parseFloat(prizePool).toFixed(4)} ETH</div>
-                </div>
-                <div className="stat-card">
-                    <h3>Mes Tickets</h3>
-                    <div className="value">{myTickets}</div>
-                </div>
-                <div className="stat-card">
-                    <h3>Temps Restant</h3>
-                    <div className="value" style={{ fontSize: '1.2em' }}>
-                        {formatTime(timeRemaining)}
-                    </div>
-                </div>
-            </div>
-
-            {!isActive && (
-                <div className="error-message">
-                    ⚠️ La loterie est actuellement inactive
-                </div>
-            )}
-
-            {canDraw && (
-                <div style={{
-                    background: 'rgba(72, 187, 120, 0.2)',
-                    border: '1px solid #48bb78',
-                    padding: '15px',
-                    borderRadius: '10px',
-                    marginBottom: '20px',
-                    textAlign: 'center'
-                }}>
-                    🎉 Le tirage peut avoir lieu ! En attente...
-                </div>
-            )}
-
-            <div className="ticket-section">
-                <h2>Acheter des Tickets</h2>
-                <div className="input-group">
-                    <input
-                        type="number"
-                        min="1"
-                        value={ticketAmount}
-                        onChange={(e) => setTicketAmount(parseInt(e.target.value) || 1)}
-                        placeholder="Nombre de tickets"
-                        disabled={loading || !isActive}
-                    />
+                {!account ? (
                     <button
-                        className="btn btn-success"
-                        onClick={buyTickets}
-                        disabled={loading || !isActive || ticketAmount < 1}
+                        className="btn btn-primary"
+                        onClick={() => setShowWalletModal(true)}
+                        disabled={loading}
                     >
-                        {loading ? 'Achat...' : `Acheter (${(ticketPrice * ticketAmount).toFixed(4)} ETH)`}
+                        {loading ? '⏳ Connexion...' : '🔗 Connecter un Wallet'}
+                    </button>
+                ) : (
+                    <div className="wallet-info">
+                        <span>✅ {formatAddress(account)}</span>
+                        {myTickets > 0 && <span className="badge">🎫 {myTickets} ticket(s)</span>}
+                    </div>
+                )}
+            </header>
+
+            {error && (
+                <div className="error-banner">
+                    ⚠️ {error}
+                </div>
+            )}
+
+            {!account && !showWalletModal && (
+                <div className="welcome-section">
+                    <h2>Bienvenue sur BlockLucky</h2>
+                    <p>Connectez votre wallet pour participer à la loterie</p>
+                    <button className="btn btn-large" onClick={() => setShowWalletModal(true)}>
+                        Choisir un Wallet
                     </button>
                 </div>
-                <p style={{ opacity: 0.7, fontSize: '0.9em' }}>
-                    💡 Plus vous achetez de tickets, plus vos chances augmentent
-                </p>
-            </div>
+            )}
 
-            {players.length > 0 && (
-                <div className="players-section">
-                    <h2>Participants ({players.length})</h2>
-                    <ul className="players-list">
-                        {players.map((player, idx) => (
-                            <li key={idx} className="player-item">
-                                <span className="player-address">
-                                    {player.address === account ? '🟢 Vous' : formatAddress(player.address)}
-                                </span>
-                                <span className="player-tickets">
-                                    {player.tickets} ticket{player.tickets > 1 ? 's' : ''}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
+            {showWalletModal && (
+                <div className="modal-overlay" onClick={() => setShowWalletModal(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <h2>Choisissez votre Wallet</h2>
+                        <div className="wallet-options">
+                            <button
+                                className="wallet-option"
+                                onClick={() => connectWallet('metamask')}
+                            >
+                                <span className="wallet-icon">🦊</span>
+                                <div>
+                                    <h3>MetaMask</h3>
+                                    <p>Le wallet le plus populaire</p>
+                                </div>
+                            </button>
+
+                            <button
+                                className="wallet-option"
+                                onClick={() => connectWallet('coinbase')}
+                            >
+                                <span className="wallet-icon">💙</span>
+                                <div>
+                                    <h3>Coinbase Wallet</h3>
+                                    <p>Par Coinbase Exchange</p>
+                                </div>
+                            </button>
+
+                            <button
+                                className="wallet-option"
+                                onClick={() => connectWallet('injected')}
+                            >
+                                <span className="wallet-icon">🔌</span>
+                                <div>
+                                    <h3>Autre Wallet</h3>
+                                    <p>N'importe quel wallet compatible</p>
+                                </div>
+                            </button>
+                        </div>
+                        <button className="btn-close" onClick={() => setShowWalletModal(false)}>
+                            ✕ Fermer
+                        </button>
+                    </div>
                 </div>
             )}
 
-            {history.length > 0 && (
-                <div className="history-section">
-                    <h2>Historique des Gagnants</h2>
-                    {history.map((item) => (
-                        <div key={item.round} className="history-item">
-                            <div className="round">Round #{item.round}</div>
-                            <div className="winner">
-                                🏆 {item.winner === account ? 'Vous avez gagné !' : formatAddress(item.winner)}
-                            </div>
-                            <div className="prize">{parseFloat(item.prize).toFixed(4)} ETH</div>
+            {contract && (
+                <>
+                    {!isActive && (
+                        <div className="warning-banner">
+                            ⚠️ La loterie est actuellement inactive
                         </div>
-                    ))}
-                </div>
+                    )}
+
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <span className="stat-label">Round</span>
+                            <span className="stat-value">#{roundNumber}</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-label">Prix du ticket</span>
+                            <span className="stat-value">{ticketPrice} ETH</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-label">Participants</span>
+                            <span className="stat-value">{playersCount} / {minPlayers}</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-label">Cagnotte</span>
+                            <span className="stat-value">{prizePool} ETH</span>
+                        </div>
+                        {timeRemaining > 0 && (
+                            <div className="stat-card">
+                                <span className="stat-label">Temps restant</span>
+                                <span className="stat-value">{formatTime(timeRemaining)}</span>
+                            </div>
+                        )}
+                        {canDraw && (
+                            <div className="stat-card highlight">
+                                <span className="stat-label">🎉 Tirage</span>
+                                <span className="stat-value">Possible !</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {isActive && (
+                        <div className="buy-section">
+                            <h2>Acheter des tickets</h2>
+                            <div className="buy-form">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="5"
+                                    value={ticketAmount}
+                                    onChange={(e) => setTicketAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                                    disabled={loading}
+                                />
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={buyTickets}
+                                    disabled={loading || !isActive}
+                                >
+                                    {loading ? '⏳ Traitement...' : `Acheter ${ticketAmount} ticket(s)`}
+                                </button>
+                            </div>
+                            <p className="buy-info">
+                                Total: {(parseFloat(ticketPrice) * ticketAmount).toFixed(4)} ETH
+                            </p>
+                        </div>
+                    )}
+
+                    {players.length > 0 && (
+                        <div className="players-section">
+                            <h2>Participants ({players.length})</h2>
+                            <div className="players-list">
+                                {players.map((player, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`player-item ${player.address.toLowerCase() === account?.toLowerCase() ? 'is-me' : ''}`}
+                                    >
+                                        <span>{formatAddress(player.address)}</span>
+                                        <span className="badge">{player.tickets} 🎫</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {history.length > 0 && (
+                        <div className="history-section">
+                            <h2>Historique des gagnants</h2>
+                            <div className="history-list">
+                                {history.reverse().map((item) => (
+                                    <div key={item.round} className="history-item">
+                                        <span className="round-badge">Round #{item.round}</span>
+                                        <span>{formatAddress(item.winner)}</span>
+                                        <span className="prize">{item.prize} ETH</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     )

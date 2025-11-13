@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import contractABI from './contractABI.json'
+import './styles/main.scss'
+import Navbar from './components/Navbar'
+import CaseStudies from './components/CaseStudies'
+import Footer from './components/Footer'
+import Hero from './components/Hero'
+import Stats from './components/Stats'
+import Players from './components/Players'
+import History from './components/History'
 
-const CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 function App() {
     const [account, setAccount] = useState(null)
@@ -277,26 +285,15 @@ function App() {
 
     return (
         <div className="app">
-            <header className="header">
-                <h1>🎰 BlockLucky</h1>
-                <p>Loterie décentralisée sur Ethereum</p>
+            <Navbar account={account} onConnect={() => setShowWalletModal(true)} />
 
-                {!account ? (
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => setShowWalletModal(true)}
-                        disabled={loading}
-                    >
-                        {loading ? '⏳ Connexion...' : '🔗 Connecter un Wallet'}
-                    </button>
-                ) : (
-                    <div className="wallet-info">
-                        <span>✅ {formatAddress(account)}</span>
-                        {myTickets > 0 && <span className="badge">🎫 {myTickets} ticket(s)</span>}
-                    </div>
-                )}
-            </header>
-
+            <Hero
+                account={account}
+                myTickets={myTickets}
+                loading={loading}
+                onConnectClick={() => setShowWalletModal(true)}
+                formatAddress={formatAddress}
+            />
             {error && (
                 <div className="error-banner">
                     ⚠️ {error}
@@ -366,36 +363,15 @@ function App() {
                         </div>
                     )}
 
-                    <div className="stats-grid">
-                        <div className="stat-card">
-                            <span className="stat-label">Round</span>
-                            <span className="stat-value">#{roundNumber}</span>
-                        </div>
-                        <div className="stat-card">
-                            <span className="stat-label">Prix du ticket</span>
-                            <span className="stat-value">{ticketPrice} ETH</span>
-                        </div>
-                        <div className="stat-card">
-                            <span className="stat-label">Participants</span>
-                            <span className="stat-value">{playersCount} / {minPlayers}</span>
-                        </div>
-                        <div className="stat-card">
-                            <span className="stat-label">Cagnotte</span>
-                            <span className="stat-value">{prizePool} ETH</span>
-                        </div>
-                        {timeRemaining > 0 && (
-                            <div className="stat-card">
-                                <span className="stat-label">Temps restant</span>
-                                <span className="stat-value">{formatTime(timeRemaining)}</span>
-                            </div>
-                        )}
-                        {canDraw && (
-                            <div className="stat-card highlight">
-                                <span className="stat-label">🎉 Tirage</span>
-                                <span className="stat-value">Possible !</span>
-                            </div>
-                        )}
-                    </div>
+                    <Stats
+                        roundNumber={roundNumber}
+                        ticketPrice={ticketPrice}
+                        playersCount={playersCount}
+                        minPlayers={minPlayers}
+                        prizePool={prizePool}
+                        timeRemaining={timeRemaining}
+                        canDraw={canDraw}
+                    />
 
                     {isActive && (
                         <div className="buy-section">
@@ -423,39 +399,15 @@ function App() {
                         </div>
                     )}
 
-                    {players.length > 0 && (
-                        <div className="players-section">
-                            <h2>Participants ({players.length})</h2>
-                            <div className="players-list">
-                                {players.map((player, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`player-item ${player.address.toLowerCase() === account?.toLowerCase() ? 'is-me' : ''}`}
-                                    >
-                                        <span>{formatAddress(player.address)}</span>
-                                        <span className="badge">{player.tickets} 🎫</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <Players players={players} account={account} formatAddress={formatAddress} />
 
-                    {history.length > 0 && (
-                        <div className="history-section">
-                            <h2>Historique des gagnants</h2>
-                            <div className="history-list">
-                                {history.reverse().map((item) => (
-                                    <div key={item.round} className="history-item">
-                                        <span className="round-badge">Round #{item.round}</span>
-                                        <span>{formatAddress(item.winner)}</span>
-                                        <span className="prize">{item.prize} ETH</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <History history={history} formatAddress={formatAddress} />
+
+                    <CaseStudies />
                 </>
             )}
+
+            <Footer />
         </div>
     )
 }
