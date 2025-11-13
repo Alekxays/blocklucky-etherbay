@@ -42,6 +42,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidSeed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "LotteryInactive",
     "type": "error"
   },

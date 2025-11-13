@@ -452,8 +452,8 @@ body {
 }
 
 .owner-section {
-    background: rgba(255, 215, 0, 0.05);
-    border: 2px solid rgba(255, 215, 0, 0.3);
+    background: rgba(72, 187, 120, 0.05);
+    border: 2px solid rgba(72, 187, 120, 0.3);
     padding: 30px;
     border-radius: 20px;
     margin: 30px 0;
@@ -461,12 +461,28 @@ body {
 
 .owner-section h2 {
     margin-bottom: 10px;
-    color: #ffd700;
+    color: #48bb78;
 }
 
 .owner-section>p {
     margin-bottom: 25px;
     opacity: 0.9;
+    text-align: center;
+}
+
+.draw-single {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 25px;
+    border-radius: 15px;
+    border: 2px solid rgba(72, 187, 120, 0.3);
+    text-align: center;
+}
+
+.draw-single small {
+    display: block;
+    margin-top: 15px;
+    opacity: 0.8;
+    font-size: 0.9em;
 }
 
 .draw-options {
@@ -508,22 +524,35 @@ body {
 
 .seed-input-group {
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
 }
 
 .seed-input-group input {
     flex: 1;
-    padding: 12px;
+    max-width: 300px;
+    padding: 15px;
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(72, 187, 120, 0.3);
     border-radius: 10px;
     color: white;
-    font-size: 1em;
+    font-size: 1.1em;
+    text-align: center;
 }
 
 .seed-input-group input::placeholder {
     color: rgba(255, 255, 255, 0.5);
+}
+
+.seed-input-group input:focus {
+    outline: none;
+    border-color: #48bb78;
+}
+
+.btn-success.btn-large {
+    padding: 15px 40px;
+    font-size: 1.2em;
 }
 
 .btn-warning {

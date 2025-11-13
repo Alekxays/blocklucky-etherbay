@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import contractABI from './contractABI.json'
 
-const CONTRACT_ADDRESS = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E"
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 function App() {
     const [account, setAccount] = useState(null)
@@ -275,27 +275,6 @@ function App() {
         }
     }
 
-    async function drawWinner() {
-        if (!contract || !isOwner) return
-
-        try {
-            setLoading(true)
-            setError(null)
-
-            // Tirage sans seed (passe 0)
-            const tx = await contract.drawWinner(0)
-            await tx.wait()
-
-            await loadLotteryData()
-            setLoading(false)
-            alert('🎉 Gagnant tiré au sort ! Vérifiez l\'historique.')
-        } catch (err) {
-            console.error('Erreur tirage:', err)
-            setError('Erreur lors du tirage: ' + (err.reason || err.message))
-            setLoading(false)
-        }
-    }
-
     async function drawWinnerWithSeed() {
         if (!contract || !isOwner) return
 
@@ -303,6 +282,7 @@ function App() {
             setLoading(true)
             setError(null)
 
+            // Génère automatiquement un seed si vide
             const seed = externalSeed ? parseInt(externalSeed) : Math.floor(Math.random() * 1000000000)
             console.log('🎲 Seed utilisé:', seed)
 
@@ -312,10 +292,14 @@ function App() {
             await loadLotteryData()
             setExternalSeed('')
             setLoading(false)
-            alert(`🎉 Gagnant tiré avec le seed ${seed} ! Vérifiez l'historique.`)
+            alert(`🎉 Gagnant tiré au sort avec seed ${seed} !`)
         } catch (err) {
-            console.error('Erreur tirage avec seed:', err)
-            setError('Erreur lors du tirage: ' + (err.reason || err.message))
+            console.error('Erreur tirage:', err)
+            if (err.reason?.includes('InvalidSeed')) {
+                setError('Le seed ne peut pas être 0. Un seed aléatoire est généré automatiquement.')
+            } else {
+                setError('Erreur lors du tirage: ' + (err.reason || err.message))
+            }
             setLoading(false)
         }
     }
@@ -489,47 +473,29 @@ function App() {
                     {isOwner && canDraw && (
                         <div className="owner-section">
                             <h2>🎲 Panel Propriétaire</h2>
-                            <p>Vous êtes le propriétaire. Vous pouvez lancer le tirage au sort !</p>
+                            <p>Entrez un seed aléatoire pour lancer le tirage (obligatoire pour la sécurité)</p>
 
-                            <div className="draw-options">
-                                <div className="draw-option">
-                                    <h3>Tirage standard</h3>
-                                    <p>Utilise uniquement le seed interne (évolue avec chaque achat)</p>
+                            <div className="draw-single">
+                                <div className="seed-input-group">
+                                    <input
+                                        type="number"
+                                        placeholder="Seed aléatoire (auto si vide)"
+                                        value={externalSeed}
+                                        onChange={(e) => setExternalSeed(e.target.value)}
+                                        disabled={loading}
+                                    />
                                     <button
-                                        className="btn btn-warning"
-                                        onClick={drawWinner}
+                                        className="btn btn-success btn-large"
+                                        onClick={drawWinnerWithSeed}
                                         disabled={loading}
                                     >
-                                        {loading ? '⏳ Tirage...' : '🎯 Lancer le tirage'}
+                                        {loading ? '⏳ Tirage en cours...' : '🎲 Lancer le tirage'}
                                     </button>
                                 </div>
-
-                                <div className="draw-option highlight">
-                                    <h3>Tirage avec seed externe</h3>
-                                    <p>Recommandé : Ajoute un nombre aléatoire pour plus de sécurité</p>
-                                    <div className="seed-input-group">
-                                        <input
-                                            type="number"
-                                            placeholder="Seed (laisse vide pour auto)"
-                                            value={externalSeed}
-                                            onChange={(e) => setExternalSeed(e.target.value)}
-                                            disabled={loading}
-                                        />
-                                        <button
-                                            className="btn btn-success"
-                                            onClick={drawWinnerWithSeed}
-                                            disabled={loading}
-                                        >
-                                            {loading ? '⏳ Tirage...' : '🎲 Lancer avec seed'}
-                                        </button>
-                                    </div>
-                                    <small>💡 Si vide, un seed aléatoire sera généré automatiquement</small>
-                                </div>
+                                <small>💡 Un seed aléatoire cryptographique sera généré automatiquement si vous laissez vide</small>
                             </div>
                         </div>
-                    )}
-
-                    {players.length > 0 && (
+                    )}                    {players.length > 0 && (
                         <div className="players-section">
                             <h2>Participants ({players.length})</h2>
                             <div className="players-list">

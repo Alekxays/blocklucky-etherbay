@@ -31,6 +31,7 @@ contract BlockLucky {
     error InvalidAmount();
     error DrawConditionsNotMet();
     error TransferFailed();
+    error InvalidSeed();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert OnlyOwner();
@@ -77,14 +78,12 @@ contract BlockLucky {
 
         ticketsPerPlayer[msg.sender] = newTotal;
 
-        // Optimisé: un seul push avec une boucle
         unchecked {
             for (uint256 i; i < count; ++i) {
                 players.push(msg.sender);
             }
         }
 
-        // Met à jour le seed
         randomSeed = uint256(
             keccak256(abi.encodePacked(randomSeed, msg.sender, block.timestamp))
         );
@@ -94,21 +93,18 @@ contract BlockLucky {
 
     function drawWinner(uint256 externalSeed) external onlyOwner {
         if (!canDrawWinner()) revert DrawConditionsNotMet();
-
-        // Mixe le seed externe si fourni
-        if (externalSeed > 0) {
-            randomSeed = uint256(
-                keccak256(abi.encodePacked(randomSeed, externalSeed))
-            );
-        }
-
+        if (externalSeed == 0) revert InvalidSeed();
+        randomSeed = uint256(
+            keccak256(
+                abi.encodePacked(randomSeed, externalSeed, block.timestamp)
+            )
+        );
         _executeDrawing();
     }
 
     function _executeDrawing() private {
         uint256 playerCount = players.length;
 
-        // Génère un hash unique de la liste des joueurs
         randomSeed = uint256(
             keccak256(
                 abi.encodePacked(
@@ -121,20 +117,16 @@ contract BlockLucky {
             )
         );
 
-        // Sélection du gagnant
         uint256 winnerIndex = randomSeed % playerCount;
         address winner = players[winnerIndex];
 
-        // Calcul des montants
         uint256 totalPot = address(this).balance;
         uint256 feeAmount = (totalPot * organizerFee) / 100;
         uint256 prizeAmount = totalPot - feeAmount;
 
-        // Sauvegarde
         winners[roundNumber] = winner;
         prizePools[roundNumber] = prizeAmount;
 
-        // Transferts
         (bool success, ) = payable(winner).call{value: prizeAmount}("");
         if (!success) revert TransferFailed();
 
@@ -144,8 +136,6 @@ contract BlockLucky {
         }
 
         emit WinnerDrawn(winner, prizeAmount, roundNumber);
-
-        // Reset pour le prochain round
         _resetLottery();
     }
 
@@ -172,16 +162,9 @@ contract BlockLucky {
 
     function canDrawWinner() public view returns (bool) {
         if (!isActive || players.length < minPlayers) return false;
-
-        // On peut tirer si :
-        // 1. Pas de limite de temps (lotteryEndTime == 0), OU
-        // 2. Le temps est écoulé (block.timestamp >= lotteryEndTime)
-        // Mais on peut aussi tirer avant si on a assez de joueurs !
-
-        return true; // Si on a assez de joueurs et que c'est actif, on peut tirer
+        return true;
     }
 
-    // Getters optimisés
     function getPlayersCount() external view returns (uint256) {
         return players.length;
     }
@@ -215,7 +198,6 @@ contract BlockLucky {
         return ticketsPerPlayer[player];
     }
 
-    // Fonctions admin
     function stopLottery() external onlyOwner {
         isActive = false;
     }
