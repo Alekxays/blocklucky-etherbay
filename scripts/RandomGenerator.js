@@ -1,5 +1,15 @@
-import { ethers } from "ethers";
-import { crypto} from "crypto";
+const { ethers } = require("ethers") ;
+import { crypto } from "crypto";
+
+/** 
+const randomUint256 = ethers.toBigInt(
+    "0x" + [...crypto.getRandomValues(new Uint8Array(32))]
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+);
+
+console.log(randomUint256)
+*/
 
 
 
