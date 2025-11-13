@@ -9,9 +9,9 @@ import Hero from './components/Hero'
 import Stats from './components/Stats'
 import Players from './components/Players'
 import History from './components/History'
-
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-
+ 
+const CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+ 
 function App() {
     const [account, setAccount] = useState(null)
     const [provider, setProvider] = useState(null)
@@ -19,7 +19,7 @@ function App() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
     const [showWalletModal, setShowWalletModal] = useState(false)
-
+ 
     // Stats de la loterie
     const [ticketPrice, setTicketPrice] = useState('0')
     const [playersCount, setPlayersCount] = useState(0)
@@ -31,20 +31,20 @@ function App() {
     const [canDraw, setCanDraw] = useState(false)
     const [owner, setOwner] = useState(null)
     const [isOwner, setIsOwner] = useState(false)
-
+ 
     // Joueurs et historique
     const [players, setPlayers] = useState([])
     const [history, setHistory] = useState([])
     const [myTickets, setMyTickets] = useState(0)
-
+ 
     // Formulaire
     const [ticketAmount, setTicketAmount] = useState(1)
     const [externalSeed, setExternalSeed] = useState('')
-
+ 
     useEffect(() => {
         checkWallet()
     }, [])
-
+ 
     useEffect(() => {
         if (contract && account) {
             loadLotteryData()
@@ -52,7 +52,7 @@ function App() {
             return () => clearInterval(interval)
         }
     }, [contract, account])
-
+ 
     async function checkWallet() {
         if (typeof window.ethereum !== 'undefined') {
             try {
@@ -65,21 +65,21 @@ function App() {
             }
         }
     }
-
+ 
     async function connectWallet(walletType = 'injected') {
         try {
             setLoading(true)
             setError(null)
             setShowWalletModal(false)
-
+ 
             if (typeof window.ethereum === 'undefined') {
                 setError('Aucun wallet crypto détecté. Installez MetaMask, Coinbase Wallet, ou un autre wallet compatible.')
                 setLoading(false)
                 return
             }
-
+ 
             let ethereum = window.ethereum
-
+ 
             // Si plusieurs wallets sont installés
             if (window.ethereum.providers && walletType !== 'injected') {
                 if (walletType === 'metamask') {
@@ -87,19 +87,19 @@ function App() {
                 } else if (walletType === 'coinbase') {
                     ethereum = window.ethereum.providers.find(p => p.isCoinbaseWallet)
                 }
-
+ 
                 if (!ethereum) {
                     setError(`${walletType === 'metamask' ? 'MetaMask' : 'Coinbase Wallet'} non trouvé. Essayez "Autre Wallet".`)
                     setLoading(false)
                     return
                 }
             }
-
+ 
             // Demander la connexion
             const accounts = await ethereum.request({
                 method: 'eth_requestAccounts'
             })
-
+ 
             // Vérifier/changer le réseau
             const chainId = await ethereum.request({ method: 'eth_chainId' })
             if (chainId !== '0x7a69') { // 31337 en hexa
@@ -137,15 +137,15 @@ function App() {
                     }
                 }
             }
-
+ 
             const provider = new ethers.BrowserProvider(ethereum)
             const signer = await provider.getSigner()
             const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, signer)
-
+ 
             setAccount(accounts[0])
             setProvider(provider)
             setContract(contract)
-
+ 
             // Écouter les changements
             ethereum.on('accountsChanged', (accounts) => {
                 if (accounts.length > 0) {
@@ -156,11 +156,11 @@ function App() {
                     setProvider(null)
                 }
             })
-
+ 
             ethereum.on('chainChanged', () => {
                 window.location.reload()
             })
-
+ 
             setLoading(false)
         } catch (err) {
             console.error('Erreur connexion:', err)
@@ -174,10 +174,10 @@ function App() {
             setLoading(false)
         }
     }
-
+ 
     async function loadLotteryData() {
         if (!contract) return
-
+ 
         try {
             const [
                 price,
@@ -202,7 +202,7 @@ function App() {
                 contract.getPlayers(),
                 contract.owner()
             ])
-
+ 
             setTicketPrice(ethers.formatEther(price))
             setPlayersCount(Number(count))
             setPrizePool(ethers.formatEther(pool))
@@ -212,30 +212,30 @@ function App() {
             setTimeRemaining(Number(time))
             setCanDraw(draw)
             setOwner(contractOwner)
-
+ 
             // Vérifier si l'utilisateur connecté est le owner
             if (account) {
                 setIsOwner(account.toLowerCase() === contractOwner.toLowerCase())
             }
-
+ 
             // Traiter la liste des joueurs
             const playerMap = {}
             playersList.forEach(addr => {
                 playerMap[addr] = (playerMap[addr] || 0) + 1
             })
-
+ 
             const playersArray = Object.entries(playerMap).map(([address, tickets]) => ({
                 address,
                 tickets
             }))
             setPlayers(playersArray)
-
+ 
             // Mes tickets
             if (account) {
                 const myCount = await contract.getTicketCount(account)
                 setMyTickets(Number(myCount))
             }
-
+ 
             // Historique
             const historyData = []
             for (let i = 1; i < round; i++) {
@@ -250,25 +250,25 @@ function App() {
                 }
             }
             setHistory(historyData)
-
+ 
         } catch (err) {
             console.error('Erreur chargement données:', err)
             setError('Impossible de charger les données du contrat. Vérifiez votre connexion.')
         }
     }
-
+ 
     async function buyTickets() {
         if (!contract || ticketAmount < 1) return
-
+ 
         try {
             setLoading(true)
             setError(null)
-
+ 
             const value = ethers.parseEther((parseFloat(ticketPrice) * ticketAmount).toString())
             const tx = await contract.buyTicket(ticketAmount, { value })
-
+ 
             await tx.wait()
-
+ 
             await loadLotteryData()
             setTicketAmount(1)
             setLoading(false)
@@ -282,21 +282,21 @@ function App() {
             setLoading(false)
         }
     }
-
+ 
     async function drawWinnerWithSeed() {
         if (!contract || !isOwner) return
-
+ 
         try {
             setLoading(true)
             setError(null)
-
+ 
             // Génère automatiquement un seed si vide
             const seed = externalSeed ? parseInt(externalSeed) : Math.floor(Math.random() * 1000000000)
             console.log('🎲 Seed utilisé:', seed)
-
+ 
             const tx = await contract.drawWinner(seed)
             await tx.wait()
-
+ 
             await loadLotteryData()
             setExternalSeed('')
             setLoading(false)
@@ -311,24 +311,24 @@ function App() {
             setLoading(false)
         }
     }
-
+ 
     function formatTime(seconds) {
         const h = Math.floor(seconds / 3600)
         const m = Math.floor((seconds % 3600) / 60)
         const s = seconds % 60
         return `${h}h ${m}m ${s}s`
     }
-
+ 
     function formatAddress(addr) {
         return `${addr.slice(0, 6)}...${addr.slice(-4)}`
     }
-
+ 
     return (
         <div className="app">
             {/* <header className="header">
                 <h1>🎰 BlockLucky</h1>
                 <p>Loterie décentralisée sur Ethereum</p>
-
+ 
                 {!account ? (
                     <button
                         className="btn btn-primary"
@@ -345,15 +345,15 @@ function App() {
                     </div>
                 )}
             </header> */}
-
+ 
             {/* {owner && (
                 // <div className="owner-info">
                 //     <span>👑 Propriétaire du contrat: {formatAddress(owner)}</span>
                 // </div>
             )} */}
-
+ 
             <Navbar account={account} onConnect={() => setShowWalletModal(true)} />
-
+ 
             <Hero
                 account={account}
                 myTickets={myTickets}
@@ -366,7 +366,7 @@ function App() {
                     ⚠️ {error}
                 </div>
             )}
-
+ 
             {!account && !showWalletModal && (
                 <div className="welcome-section">
                     <h2>Bienvenue sur BlockLucky</h2>
@@ -376,7 +376,7 @@ function App() {
                     </button>
                 </div>
             )}
-
+ 
             {showWalletModal && (
                 <div className="modal-overlay" onClick={() => setShowWalletModal(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -392,7 +392,7 @@ function App() {
                                     <p>Le wallet le plus populaire</p>
                                 </div>
                             </button>
-
+ 
                             <button
                                 className="wallet-option"
                                 onClick={() => connectWallet('coinbase')}
@@ -403,7 +403,7 @@ function App() {
                                     <p>Par Coinbase Exchange</p>
                                 </div>
                             </button>
-
+ 
                             <button
                                 className="wallet-option"
                                 onClick={() => connectWallet('injected')}
@@ -421,7 +421,7 @@ function App() {
                     </div>
                 </div>
             )}
-
+ 
             {contract && (
                 <>
                     {!isActive && (
@@ -429,7 +429,7 @@ function App() {
                             ⚠️ La loterie est actuellement inactive
                         </div>
                     )}
-
+ 
                     <Stats
                         roundNumber={roundNumber}
                         ticketPrice={ticketPrice}
@@ -439,7 +439,7 @@ function App() {
                         timeRemaining={timeRemaining}
                         canDraw={canDraw}
                     />
-
+ 
                     {isActive && (
                         <div className="buy-section">
                             <h2>Acheter des tickets</h2>
@@ -465,12 +465,12 @@ function App() {
                             </p>
                         </div>
                     )}
-
+ 
                     {isOwner && canDraw && (
                         <div className="owner-section">
                             <h2>🎲 Panel Propriétaire</h2>
                             <p>Entrez un seed aléatoire pour lancer le tirage (obligatoire pour la sécurité)</p>
-
+ 
                             <div className="draw-single">
                                 <div className="seed-input-group">
                                     <input
@@ -507,8 +507,8 @@ function App() {
                             </div>
                         </div>
                     )}
-
-                    {history.length > 0 && (
+ 
+                    {/* {history.length > 0 && (
                         <div className="history-section">
                             <h2>Historique des gagnants</h2>
                             <div className="history-list">
@@ -521,18 +521,18 @@ function App() {
                                 ))}
                             </div>
                         </div>
-                    )}
+                    )} */}
                     <Players players={players} account={account} formatAddress={formatAddress} />
-
+ 
                     <History history={history} formatAddress={formatAddress} />
-
+ 
                     <CaseStudies />
                 </>
             )}
-
+ 
             <Footer />
         </div>
     )
 }
-
+ 
 export default App
