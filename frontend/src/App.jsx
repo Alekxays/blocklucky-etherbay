@@ -325,7 +325,7 @@ function App() {
 
     return (
         <div className="app">
-            <header className="header">
+            {/* <header className="header">
                 <h1>🎰 BlockLucky</h1>
                 <p>Loterie décentralisée sur Ethereum</p>
 
@@ -344,13 +344,13 @@ function App() {
                         {myTickets > 0 && <span className="badge">🎫 {myTickets} ticket(s)</span>}
                     </div>
                 )}
-            </header>
+            </header> */}
 
-            {owner && (
-                <div className="owner-info">
-                    <span>👑 Propriétaire du contrat: {formatAddress(owner)}</span>
-                </div>
-            )}
+            {/* {owner && (
+                // <div className="owner-info">
+                //     <span>👑 Propriétaire du contrat: {formatAddress(owner)}</span>
+                // </div>
+            )} */}
 
             <Navbar account={account} onConnect={() => setShowWalletModal(true)} />
 
