@@ -29,6 +29,8 @@ function App() {
     const [isActive, setIsActive] = useState(false)
     const [timeRemaining, setTimeRemaining] = useState(0)
     const [canDraw, setCanDraw] = useState(false)
+    const [owner, setOwner] = useState(null)
+    const [isOwner, setIsOwner] = useState(false)
 
     // Joueurs et historique
     const [players, setPlayers] = useState([])
@@ -37,6 +39,7 @@ function App() {
 
     // Formulaire
     const [ticketAmount, setTicketAmount] = useState(1)
+    const [externalSeed, setExternalSeed] = useState('')
 
     useEffect(() => {
         checkWallet()
@@ -185,7 +188,8 @@ function App() {
                 active,
                 time,
                 draw,
-                playersList
+                playersList,
+                contractOwner
             ] = await Promise.all([
                 contract.ticketPrice(),
                 contract.getPlayersCount(),
@@ -195,7 +199,8 @@ function App() {
                 contract.isActive(),
                 contract.getTimeRemaining(),
                 contract.canDrawWinner(),
-                contract.getPlayers()
+                contract.getPlayers(),
+                contract.owner()
             ])
 
             setTicketPrice(ethers.formatEther(price))
@@ -206,6 +211,12 @@ function App() {
             setIsActive(active)
             setTimeRemaining(Number(time))
             setCanDraw(draw)
+            setOwner(contractOwner)
+
+            // Vérifier si l'utilisateur connecté est le owner
+            if (account) {
+                setIsOwner(account.toLowerCase() === contractOwner.toLowerCase())
+            }
 
             // Traiter la liste des joueurs
             const playerMap = {}
@@ -272,6 +283,35 @@ function App() {
         }
     }
 
+    async function drawWinnerWithSeed() {
+        if (!contract || !isOwner) return
+
+        try {
+            setLoading(true)
+            setError(null)
+
+            // Génère automatiquement un seed si vide
+            const seed = externalSeed ? parseInt(externalSeed) : Math.floor(Math.random() * 1000000000)
+            console.log('🎲 Seed utilisé:', seed)
+
+            const tx = await contract.drawWinner(seed)
+            await tx.wait()
+
+            await loadLotteryData()
+            setExternalSeed('')
+            setLoading(false)
+            alert(`🎉 Gagnant tiré au sort avec seed ${seed} !`)
+        } catch (err) {
+            console.error('Erreur tirage:', err)
+            if (err.reason?.includes('InvalidSeed')) {
+                setError('Le seed ne peut pas être 0. Un seed aléatoire est généré automatiquement.')
+            } else {
+                setError('Erreur lors du tirage: ' + (err.reason || err.message))
+            }
+            setLoading(false)
+        }
+    }
+
     function formatTime(seconds) {
         const h = Math.floor(seconds / 3600)
         const m = Math.floor((seconds % 3600) / 60)
@@ -285,6 +325,33 @@ function App() {
 
     return (
         <div className="app">
+            <header className="header">
+                <h1>🎰 BlockLucky</h1>
+                <p>Loterie décentralisée sur Ethereum</p>
+
+                {!account ? (
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => setShowWalletModal(true)}
+                        disabled={loading}
+                    >
+                        {loading ? '⏳ Connexion...' : '🔗 Connecter un Wallet'}
+                    </button>
+                ) : (
+                    <div className="wallet-info">
+                        <span>✅ {formatAddress(account)}</span>
+                        {isOwner && <span className="badge badge-owner">👑 Propriétaire</span>}
+                        {myTickets > 0 && <span className="badge">🎫 {myTickets} ticket(s)</span>}
+                    </div>
+                )}
+            </header>
+
+            {owner && (
+                <div className="owner-info">
+                    <span>👑 Propriétaire du contrat: {formatAddress(owner)}</span>
+                </div>
+            )}
+
             <Navbar account={account} onConnect={() => setShowWalletModal(true)} />
 
             <Hero
@@ -399,6 +466,62 @@ function App() {
                         </div>
                     )}
 
+                    {isOwner && canDraw && (
+                        <div className="owner-section">
+                            <h2>🎲 Panel Propriétaire</h2>
+                            <p>Entrez un seed aléatoire pour lancer le tirage (obligatoire pour la sécurité)</p>
+
+                            <div className="draw-single">
+                                <div className="seed-input-group">
+                                    <input
+                                        type="number"
+                                        placeholder="Seed aléatoire (auto si vide)"
+                                        value={externalSeed}
+                                        onChange={(e) => setExternalSeed(e.target.value)}
+                                        disabled={loading}
+                                    />
+                                    <button
+                                        className="btn btn-success btn-large"
+                                        onClick={drawWinnerWithSeed}
+                                        disabled={loading}
+                                    >
+                                        {loading ? '⏳ Tirage en cours...' : '🎲 Lancer le tirage'}
+                                    </button>
+                                </div>
+                                <small>💡 Un seed aléatoire cryptographique sera généré automatiquement si vous laissez vide</small>
+                            </div>
+                        </div>
+                    )}                    {players.length > 0 && (
+                        <div className="players-section">
+                            <h2>Participants ({players.length})</h2>
+                            <div className="players-list">
+                                {players.map((player, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`player-item ${player.address.toLowerCase() === account?.toLowerCase() ? 'is-me' : ''}`}
+                                    >
+                                        <span>{formatAddress(player.address)}</span>
+                                        <span className="badge">{player.tickets} 🎫</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {history.length > 0 && (
+                        <div className="history-section">
+                            <h2>Historique des gagnants</h2>
+                            <div className="history-list">
+                                {history.reverse().map((item) => (
+                                    <div key={item.round} className="history-item">
+                                        <span className="round-badge">Round #{item.round}</span>
+                                        <span>{formatAddress(item.winner)}</span>
+                                        <span className="prize">{item.prize} ETH</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <Players players={players} account={account} formatAddress={formatAddress} />
 
                     <History history={history} formatAddress={formatAddress} />

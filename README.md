@@ -29,6 +29,8 @@ Loterie décentralisée sur Ethereum avec Solidity et Hardhat.
 - ✅ Durée limitée optionnelle
 - ✅ Protection réentrance
 - ✅ Rounds multiples avec historique
+- ✅ **Système d'aléatoire amélioré avec seed externe**
+- ✅ Frontend React avec sélecteur de wallets
 
 ---
 

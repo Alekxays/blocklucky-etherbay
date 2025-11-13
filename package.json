@@ -9,6 +9,7 @@
         "deploy:local": "hardhat run scripts/deploy.js --network localhost",
         "interact": "hardhat run scripts/interact.js --network localhost",
         "status": "hardhat run scripts/status.js --network localhost",
+        "draw:seed": "hardhat run scripts/drawWithSeed.js --network localhost",
         "node": "hardhat node",
         "clean": "hardhat clean",
         "coverage": "hardhat coverage",
