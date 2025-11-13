@@ -11,4 +11,6 @@ async function main() {
     const [deploy] = await ethers.getSigner()
     const contractAddress = "";
     const BlockLucky = await ethers.getContractFactory("BlockLucky");
+    const randomContract = await BlockLucky.attach(contractAddress);
+    
 }
